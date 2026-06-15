@@ -416,6 +416,41 @@
     @media (max-width: 400px) {
       .gallery-grid { grid-template-columns: 1fr; }
     }
+  /* ─── Splash Screen ─── */
+  #splash {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: linear-gradient(160deg, #fff0f0 0%, #fde8d8 50%, #f9e4c8 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.4rem;
+    cursor: pointer;
+    transition: opacity 0.8s ease;
+  }
+  #splash.hidden { opacity: 0; pointer-events: none; }
+  #splash-rose {
+    font-size: 3.5rem;
+    animation: heartbeat 2.2s ease infinite;
+  }
+  #splash-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    font-style: italic;
+    color: var(--text);
+    text-align: center;
+    padding: 0 2rem;
+  }
+  #splash-hint {
+    font-family: 'Dancing Script', cursive;
+    font-size: 1.1rem;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    animation: fadeUp 1.4s ease 0.8s both;
+  }
+
   /* ─── Music Button ─── */
   #music-btn {
     position: fixed;
@@ -445,6 +480,13 @@
   </style>
 </head>
 <body>
+
+  <!-- Splash screen -->
+  <div id="splash">
+    <div id="splash-rose">🌸</div>
+    <div id="splash-title">A little something<br>for you, Mama</div>
+    <div id="splash-hint">tap to open</div>
+  </div>
 
   <!-- Petal canvas sits behind everything -->
   <canvas id="petal-canvas" aria-hidden="true"></canvas>
@@ -819,6 +861,8 @@
       }
     }
 
+    const splash = document.getElementById('splash');
+
     function startMusic() {
       if (isPlaying) return;
       if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -830,25 +874,11 @@
       loop(66);
     }
 
-    /* Start on first interaction anywhere on the page */
-    function onFirstInteraction() {
+    /* Splash tap — starts music directly inside the tap event (works on iOS) */
+    splash.addEventListener('click', function () {
       startMusic();
-      document.removeEventListener('click',     onFirstInteraction);
-      document.removeEventListener('scroll',    onFirstInteraction);
-      document.removeEventListener('touchstart',onFirstInteraction);
-      document.removeEventListener('keydown',   onFirstInteraction);
-    }
-    document.addEventListener('click',      onFirstInteraction);
-    document.addEventListener('scroll',     onFirstInteraction);
-    document.addEventListener('touchstart', onFirstInteraction);
-    document.addEventListener('keydown',    onFirstInteraction);
-
-    /* Also try immediate autoplay (works in some browsers) */
-    window.addEventListener('load', function () {
-      try {
-        ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'running') startMusic();
-      } catch(e) {}
+      splash.classList.add('hidden');
+      setTimeout(function () { splash.style.display = 'none'; }, 900);
     });
 
     /* Button manually toggles */
