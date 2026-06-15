@@ -416,12 +416,41 @@
     @media (max-width: 400px) {
       .gallery-grid { grid-template-columns: 1fr; }
     }
+  /* ─── Music Button ─── */
+  #music-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 100;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(201,169,110,0.5);
+    background: rgba(253,246,238,0.92);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    box-shadow: 0 4px 20px rgba(90,62,54,0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: var(--gold);
+  }
+  #music-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px rgba(90,62,54,0.18);
+  }
+  #music-btn.playing { background: rgba(245,198,198,0.92); }
   </style>
 </head>
 <body>
 
   <!-- Petal canvas sits behind everything -->
   <canvas id="petal-canvas" aria-hidden="true"></canvas>
+
+  <!-- Music toggle button -->
+  <button id="music-btn" title="Toggle music" aria-label="Toggle music">♪</button>
 
   <!-- ═══════════════════════════════════════════
        HERO
@@ -709,6 +738,106 @@
 
     reveals.forEach(function (el) { observer.observe(el); });
 
+  })();
+  </script>
+
+  <!-- ═══════════════════════════════════════════
+       MUSIC — gentle piano melody via Web Audio
+  ═══════════════════════════════════════════ -->
+  <script>
+  (function () {
+    const btn = document.getElementById('music-btn');
+    let ctx, isPlaying = false, stopFlag = false;
+
+    /* ── Note frequencies ── */
+    const F = {
+      C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00,
+      A4:440.00, B4:493.88, C5:523.25, D5:587.33, E5:659.25,
+      G5:783.99, A5:880.00
+    };
+
+    /* ── Melody: [frequency, duration in beats] ── */
+    const melody = [
+      [F.E4,1],[F.G4,0.5],[F.A4,0.5],[F.G4,1],[F.E4,0.5],[F.D4,0.5],
+      [F.C4,1.5],[F.D4,0.5],[F.E4,1],[F.G4,0.5],[F.A4,0.5],[F.C5,1],
+      [F.B4,0.5],[F.A4,0.5],[F.G4,2],
+      [F.A4,1],[F.G4,0.5],[F.E4,0.5],[F.D4,1],[F.E4,0.5],[F.C4,0.5],
+      [F.D4,1],[F.E4,0.5],[F.G4,0.5],[F.A4,1],[F.G4,0.5],[F.E4,0.5],
+      [F.C4,3],
+    ];
+
+    /* ── Soft piano-like note ── */
+    function playNote(freq, startTime, duration) {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const dur  = duration * 0.95;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      /* Add a subtle overtone for warmth */
+      const osc2  = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(freq * 2, startTime);
+      gain2.gain.setValueAtTime(0.08, startTime);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(startTime);
+      osc2.stop(startTime + dur);
+
+      /* Envelope: quick attack, gentle decay */
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.18, startTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + dur);
+    }
+
+    function scheduleMelody(startTime, bpm) {
+      const beat = 60 / bpm;
+      let t = startTime;
+      melody.forEach(function([freq, beats]) {
+        playNote(freq, t, beats * beat);
+        t += beats * beat;
+      });
+      return t; /* returns when melody ends */
+    }
+
+    async function loop(bpm) {
+      let nextStart = ctx.currentTime + 0.1;
+      while (!stopFlag) {
+        const endTime = scheduleMelody(nextStart, bpm);
+        nextStart = endTime;
+        /* wait until just before the melody ends to reschedule */
+        const waitMs = (endTime - ctx.currentTime - 0.5) * 1000;
+        await new Promise(r => setTimeout(r, Math.max(waitMs, 100)));
+        if (stopFlag) break;
+      }
+    }
+
+    btn.addEventListener('click', function () {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+
+      if (!isPlaying) {
+        isPlaying = true;
+        stopFlag  = false;
+        btn.classList.add('playing');
+        btn.title = 'Pause music';
+        loop(66);
+      } else {
+        isPlaying = false;
+        stopFlag  = true;
+        btn.classList.remove('playing');
+        btn.title = 'Play music';
+        /* fade out by suspending context */
+        ctx.suspend();
+      }
+    });
   })();
   </script>
 
