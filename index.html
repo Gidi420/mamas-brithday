@@ -819,23 +819,49 @@
       }
     }
 
-    btn.addEventListener('click', function () {
+    function startMusic() {
+      if (isPlaying) return;
       if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
       if (ctx.state === 'suspended') ctx.resume();
+      isPlaying = true;
+      stopFlag  = false;
+      btn.classList.add('playing');
+      btn.title = 'Pause music';
+      loop(66);
+    }
 
-      if (!isPlaying) {
-        isPlaying = true;
-        stopFlag  = false;
-        btn.classList.add('playing');
-        btn.title = 'Pause music';
-        loop(66);
-      } else {
+    /* Start on first interaction anywhere on the page */
+    function onFirstInteraction() {
+      startMusic();
+      document.removeEventListener('click',     onFirstInteraction);
+      document.removeEventListener('scroll',    onFirstInteraction);
+      document.removeEventListener('touchstart',onFirstInteraction);
+      document.removeEventListener('keydown',   onFirstInteraction);
+    }
+    document.addEventListener('click',      onFirstInteraction);
+    document.addEventListener('scroll',     onFirstInteraction);
+    document.addEventListener('touchstart', onFirstInteraction);
+    document.addEventListener('keydown',    onFirstInteraction);
+
+    /* Also try immediate autoplay (works in some browsers) */
+    window.addEventListener('load', function () {
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'running') startMusic();
+      } catch(e) {}
+    });
+
+    /* Button manually toggles */
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (isPlaying) {
         isPlaying = false;
         stopFlag  = true;
         btn.classList.remove('playing');
         btn.title = 'Play music';
-        /* fade out by suspending context */
         ctx.suspend();
+      } else {
+        startMusic();
       }
     });
   })();
